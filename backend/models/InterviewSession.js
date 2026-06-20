@@ -5,6 +5,12 @@ const validStages = Object.values(STAGES);
 
 const interviewSessionSchema = new mongoose.Schema(
 {
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'UserProfile',
+        required: true
+    },
+
     sessionId: {
         type: String,
         required: true,
@@ -22,7 +28,7 @@ const interviewSessionSchema = new mongoose.Schema(
         required: true
     },
 
-    question: {
+    questionId: {
         type: String,
         required: true
     },
@@ -91,6 +97,11 @@ const interviewSessionSchema = new mongoose.Schema(
             'ABANDONED'
         ],
         default: 'IN_PROGRESS'
+    },
+
+    finalReport: {
+        type: String,
+        default: null
     }
 },
 {
