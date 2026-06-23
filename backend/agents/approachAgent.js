@@ -4,6 +4,9 @@ const path = require("path");
 const llmService =
     require("../services/llmService");
 
+const hintAgent =
+    require("./hintAgent");
+
 const promptPath = path.join(
     __dirname,
     "../prompts/approachPrompt.txt"
@@ -15,11 +18,11 @@ const systemInstruction =
         "utf8"
     );
 
-const approachAgent =
-async (
+const approachAgent = async (
     question,
     history,
-    userResponse
+    userResponse,
+    hintNeeded = false
 ) => {
 
     history.push({
@@ -27,12 +30,38 @@ async (
         content: userResponse
     });
 
+    let generatedHint = null;
+
+    /*
+     * Generate hint FIRST
+     * because it becomes context
+     * for the evaluator.
+     */
+    if (hintNeeded) {
+
+        generatedHint =
+            await hintAgent(
+                question,
+                history,
+                userResponse
+            );
+    }
+
     const responseContext = `
 QUESTION:
 ${JSON.stringify(question, null, 2)}
 
 CANDIDATE RESPONSE:
 ${userResponse}
+
+${
+generatedHint
+? `
+AVAILABLE_HINT:
+${generatedHint}
+`
+: ""
+}
 `;
 
     try {
@@ -60,6 +89,7 @@ ${userResponse}
             evaluation.score === undefined ||
             !evaluation.approach_status
         ) {
+
             throw new Error(
                 "Invalid Approach Evaluation"
             );

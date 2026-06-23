@@ -6,7 +6,7 @@ const llmService =
 
 const promptPath = path.join(
     __dirname,
-    "../prompts/codingPrompt.txt"
+    "../prompts/hintPrompt.txt"
 );
 
 const systemInstruction =
@@ -15,16 +15,11 @@ const systemInstruction =
         "utf8"
     );
 
-const codingAgent = async (
+const hintAgent = async (
     question,
     history,
     userResponse
 ) => {
-
-    history.push({
-        role: "user",
-        content: userResponse
-    });
 
     const responseContext = `
 QUESTION:
@@ -36,7 +31,7 @@ ${userResponse}
 
     try {
 
-        const evaluation =
+        const hint =
             await llmService.generateResponse({
 
                 systemInstruction,
@@ -47,32 +42,19 @@ ${userResponse}
                     responseContext
             });
 
-        if (
-            evaluation.score === undefined ||
-            evaluation.code_given === undefined ||
-            evaluation.language_selected === undefined ||
-            evaluation.interview_complete === undefined
-        ) {
+        if (!hint.hint) {
 
             throw new Error(
-                "Invalid Coding Evaluation"
+                "Invalid Hint Response"
             );
         }
 
-        history.push({
-
-            role: "assistant",
-
-            content:
-                evaluation.screen_message
-        });
-
-        return evaluation;
+        return hint.hint;
 
     } catch (err) {
 
         console.error(
-            "Coding Agent Error:",
+            "Hint Agent Error:",
             err
         );
 
@@ -81,4 +63,4 @@ ${userResponse}
 };
 
 module.exports =
-    codingAgent;
+    hintAgent;
