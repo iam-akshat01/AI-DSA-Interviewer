@@ -29,32 +29,44 @@ async (
 
     const responseContext = `
 QUESTION:
-${question}
+${JSON.stringify(question, null, 2)}
 
 CANDIDATE RESPONSE:
 ${userResponse}
 `;
 
-    const evaluation =
-        await llmService.generateResponse({
+    try {
 
-            systemInstruction,
+        const evaluation =
+            await llmService.generateResponse({
 
-            history,
+                systemInstruction,
 
-            userMessage:
-                responseContext
+                history,
+
+                userMessage:
+                    responseContext
+            });
+
+        history.push({
+
+            role: "assistant",
+
+            content:
+                evaluation.screen_message
         });
 
-    history.push({
+        return evaluation;
 
-        role: "assistant",
+    } catch (err) {
 
-        content:
-            evaluation.screen_message
-    });
+        console.error(
+            "Problem Understanding Agent Error:",
+            err
+        );
 
-    return evaluation;
+        throw err;
+    }
 };
 
 module.exports =
