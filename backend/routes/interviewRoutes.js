@@ -4,18 +4,38 @@ const router = express.Router();
 
 const {
     startInterview,
-    submitUnderstanding
-} = require(
-    "../controllers/interviewController"
+    submitResponse,
+    getInterview
+} = require("../controllers/interviewController");
+
+/*
+|--------------------------------------------------------------------------
+| Interview Routes
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * Start a new interview
+ */
+router.post(
+    "/start",
+    startInterview
 );
 
+/**
+ * Submit response for the current stage
+ */
 router.post(
-    "/start", startInterview
+    "/submit",
+    submitResponse
 );
 
-router.post(
-    "/submit-understanding",
-    submitUnderstanding
+/**
+ * Get interview session
+ */
+router.get(
+    "/:sessionId",
+    getInterview
 );
 
 module.exports = router;

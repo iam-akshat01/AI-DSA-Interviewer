@@ -15,26 +15,67 @@ const systemInstruction =
         "utf8"
     );
 
-
-
-const codeReviewAgent = 
-async(
+const codeReviewAgent = async (
     question,
     history,
-    userResponse)
-    =>{
-        history.push({
-        role: "user",
-        content: userResponse
-    });
+    userResponse
+) => {
 
     const responseContext = `
 QUESTION:
 ${JSON.stringify(question, null, 2)}
 
-CANDIDATE RESPONSE:
+CANDIDATE CODE:
 ${userResponse}
 `;
 
+    try {
+
+        const evaluation =
+            await llmService.generateResponse({
+
+                systemInstruction,
+
+                history,
+
+                userMessage:
+                    responseContext
+
+            });
+
+        if (
+
+            evaluation.score === undefined ||
+
+            !evaluation.screen_message
+
+        ) {
+
+            throw new Error(
+                "Invalid Code Review Response"
+            );
+
+        }
+
+        return evaluation;
 
     }
+
+    catch (err) {
+
+        console.error(
+
+            "Code Review Agent Error:",
+
+            err
+
+        );
+
+        throw err;
+
+    }
+
+};
+
+module.exports =
+    codeReviewAgent;

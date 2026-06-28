@@ -21,10 +21,10 @@ const codingAgent = async (
     userResponse
 ) => {
 
-    history.push({
-        role: "user",
-        content: userResponse
-    });
+    // history.push({
+    //     role: "user",
+    //     content: userResponse
+    // });
 
     const responseContext = `
 QUESTION:
@@ -59,13 +59,13 @@ ${userResponse}
             );
         }
 
-        history.push({
+        // history.push({
 
-            role: "assistant",
+        //     role: "assistant",
 
-            content:
-                evaluation.screen_message
-        });
+        //     content:
+        //         evaluation.screen_message
+        // });
 
         return evaluation;
 

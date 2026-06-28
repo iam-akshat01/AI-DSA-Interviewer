@@ -1,7 +1,10 @@
-const { v4: uuidv4 } = require("uuid");
 const interviewService = require("../services/interviewService");
 
+/**
+ * Start a new interview
+ */
 const startInterview = async (req, res) => {
+
     try {
 
         const {
@@ -10,96 +13,180 @@ const startInterview = async (req, res) => {
             difficulty
         } = req.body;
 
-        // temporary question until PostgreSQL is ready
+        /*
+        Temporary question until PostgreSQL
+        integration is completed.
+        */
+
         const question = {
+
             id: "Q001",
-            title: "Two Sum"
+
+            title: "Two Sum",
+
+            description:
+                "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+
+            constraints: [
+
+                "Exactly one valid answer exists.",
+
+                "Do not use the same element twice."
+
+            ],
+
+            examples: [
+
+                {
+
+                    input:
+                        "nums = [2,7,11,15], target = 9",
+
+                    output:
+                        "[0,1]"
+
+                }
+
+            ],
+
+            difficulty
+
         };
 
         const interview =
             await interviewService.createInterview({
-                sessionId: uuidv4(),
+
                 userId,
+
                 topic,
+
                 difficulty,
-                questionId: question.id
+
+                question
+
             });
 
-        res.status(201).json({
+        return res.status(201).json({
+
             success: true,
+
             interview
-        });
 
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message
         });
 
     }
+
+    catch (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
 };
 
-const problemUnderstandingAgent =
-    require("../agents/problemUnderstandingAgent");
+/**
+ * Submit response for the current stage.
+ */
+const submitResponse = async (req, res) => {
 
-const submitUnderstanding =
-    async (req, res) => {
+    try {
 
-        try {
+        const {
 
-            const {
+            sessionId,
+
+            response
+
+        } = req.body;
+
+        const result =
+            await interviewService.submitResponse({
+
                 sessionId,
-                response
-            } = req.body;
 
-            const interview =
-                await interviewService
-                    .getInterviewBySessionId(
-                        sessionId
-                    );
+                userResponse: response
 
-            const evaluation =
-                await problemUnderstandingAgent(
-                    interview.questionId,
-                    [],
-                    response
-                );
+            });
 
-            await interviewService.saveEvaluation(
-                sessionId,
-                STAGES.PROBLEM_UNDERSTANDING,
-                evaluation.score,
-                evaluation.screen_message
+        return res.json({
+
+            success: true,
+
+            ...result
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+/**
+ * Get interview session.
+ */
+const getInterview = async (req, res) => {
+
+    try {
+
+        const { sessionId } =
+            req.params;
+
+        const interview =
+            await interviewService.getInterview(
+                sessionId
             );
 
-            if (
-                evaluation.score >= 7
-            ) {
+        return res.json({
 
-                await interviewService
-                    .updateStage(
-                        sessionId,
-                        STAGES.APPROACH_DISCUSSION
-                    );
-            }
+            success: true,
 
-            res.json({
-                success: true,
-                evaluation
-            });
+            interview
 
-        } catch (error) {
+        });
 
-            res.status(500).json({
-                success: false,
-                message: error.message
-            });
+    }
 
-        }
-    };
+    catch (error) {
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
 
 module.exports = {
+
     startInterview,
-    submitUnderstanding
+
+    submitResponse,
+
+    getInterview
+
 };

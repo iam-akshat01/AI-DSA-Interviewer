@@ -1,156 +1,367 @@
-const InterviewSession = require("../models/InterviewSession");
+const sessionService = require("./sessionService");
+const evaluationService = require("./evaluationService");
+const stageService = require("./stageService");
+
 const STAGES = require("../constants/stages");
 
-//create a new interview session
+const problemUnderstandingAgent = require("../agents/problemUnderstandingAgent");
+const approachAgent = require("../agents/approachAgent");
+const codingAgent = require("../agents/codingAgent");
+const codeReviewAgent = require("../agents/codeReviewAgent");
+const reportAgent = require("../agents/reportAgent");
+
+/*
+|--------------------------------------------------------------------------
+| Stage → Agent Mapping
+|--------------------------------------------------------------------------
+*/
+
+const stageAgents = {
+    [STAGES.PROBLEM_UNDERSTANDING]: problemUnderstandingAgent,
+    [STAGES.APPROACH_DISCUSSION]: approachAgent,
+    [STAGES.CODING]: codingAgent,
+    [STAGES.CODE_REVIEW]: codeReviewAgent
+};
+
+/*
+|--------------------------------------------------------------------------
+| Create Interview
+|--------------------------------------------------------------------------
+*/
+
 const createInterview = async ({
-    sessionId,
     userId,
     topic,
     difficulty,
-    questionId
+    question
 }) => {
-
-    return await InterviewSession.create({
-        sessionId,
+    return sessionService.createSession({
         userId,
         topic,
         difficulty,
-        questionId,
-        currentStage:
-            STAGES.PROBLEM_UNDERSTANDING
-    });
-
-};
-
-const getInterviewBySessionId = async (
-    sessionId
-) => {
-    return await InterviewSession.findOne({
-        sessionId
+        question
     });
 };
 
-//update the current stage of the interview session
-const updateStage = async (
+/*
+|--------------------------------------------------------------------------
+| Get Interview
+|--------------------------------------------------------------------------
+*/
+
+const getInterview = async (sessionId) => {
+    return sessionService.getSession(sessionId);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Submit Response
+|--------------------------------------------------------------------------
+*/
+
+const submitResponse = async ({
     sessionId,
-    stage
-) => {
-    return await InterviewSession.findOneAndUpdate(
-        { sessionId },
-        {
-            currentStage: stage
-        },
-        {
-            new: true
-        }
+    userResponse
+}) => {
+
+    /*
+    ---------------------------------------
+    Load Interview Session
+    ---------------------------------------
+    */
+
+    const session =
+        await sessionService.getSession(sessionId);
+
+    if (session.status === "COMPLETED") {
+
+        throw new Error(
+            "Interview has already been completed."
+        );
+
+    }
+
+    /*
+    ---------------------------------------
+    Save Candidate Response
+    ---------------------------------------
+    */
+
+    sessionService.appendConversation(
+        session,
+        "user",
+        userResponse
     );
-};
 
-//increment interview attempts
-const incrementAttempts = async (
-    sessionId,
-    attemptType
-) => {
-    const interview =
-        await InterviewSession.findOne({
-            sessionId
-        });
+    /*
+    ---------------------------------------
+    Current Stage
+    ---------------------------------------
+    */
 
-    if (!interview) {
+    const currentStage =
+        session.currentStage;
+
+    const agent =
+        stageAgents[currentStage];
+
+    if (!agent) {
+
         throw new Error(
-            "Interview session not found"
+            `No agent registered for stage ${currentStage}`
         );
+
     }
 
-    interview.attempts[attemptType] += 1;
+    /*
+    ---------------------------------------
+    Hint Generation
+    ---------------------------------------
+    */
 
-    await interview.save();
-
-    return interview;
-}
-
-//evaluate the interview session and save the score and feedback
-const saveEvaluation = async (
-    sessionId,
-    stage,
-    score,
-    feedback
-) => {
-
-    const interview =
-        await InterviewSession.findOne({
-            sessionId
-        });
-
-    if (!interview) {
-        throw new Error(
-            "Interview session not found"
+    const hintNeeded =
+        stageService.shouldGenerateHint(
+            session,
+            currentStage
         );
+
+    /*
+    ---------------------------------------
+    Execute Agent
+    ---------------------------------------
+    */
+
+    let evaluation;
+
+    if (
+        currentStage ===
+        STAGES.APPROACH_DISCUSSION
+    ) {
+
+        evaluation = await agent(
+            session.question,
+            session.history,
+            userResponse,
+            hintNeeded
+        );
+
     }
 
-    switch (stage) {
+    else {
 
-        case STAGES.PROBLEM_UNDERSTANDING:
-            interview.understandingScore =
-                score;
-            break;
+        evaluation = await agent(
+            session.question,
+            session.history,
+            userResponse
+        );
 
-        case STAGES.APPROACH_DISCUSSION:
-            interview.approachScore =
-                score;
-            break;
+    }
 
-        case STAGES.CODING:
-            interview.codingScore =
-                score;
-            break;
+    /*
+    ---------------------------------------
+    Save AI Response
+    ---------------------------------------
+    */
 
-        default:
-            throw new Error(
-                "Invalid stage"
+    sessionService.appendConversation(
+        session,
+        "assistant",
+        evaluation.screen_message
+    );
+
+    /*
+    ---------------------------------------
+    Save Evaluation
+    ---------------------------------------
+    */
+
+    evaluationService.appendEvaluation(
+        session,
+        currentStage,
+        evaluation
+    );
+
+    /*
+    ---------------------------------------
+    Save Submitted Code
+    ---------------------------------------
+    */
+
+    if (
+        currentStage === STAGES.CODING &&
+        evaluation.code_given
+    ) {
+
+        sessionService.saveSubmittedCode(
+            session,
+            userResponse
+        );
+
+    }
+
+    /*
+    ---------------------------------------
+    Increment Attempts
+    ---------------------------------------
+    */
+
+    if (currentStage === STAGES.APPROACH_DISCUSSION) {
+
+        stageService.incrementAttempts(
+            session,
+            currentStage
+        );
+
+    }
+
+    /*
+    ---------------------------------------
+    Decide Stage Progression
+    ---------------------------------------
+    */
+
+    const shouldAdvance =
+        stageService.shouldAdvanceStage(
+            session,
+            currentStage,
+            evaluation
+        );
+
+    if (shouldAdvance) {
+
+        const nextStage =
+            stageService.getNextStage(
+                currentStage
             );
+
+        /*
+        ---------------------------------------
+        Final Report
+        ---------------------------------------
+        */
+
+        if (
+            nextStage ===
+            STAGES.FINAL_REPORT
+        ) {
+
+            sessionService.updateStage(
+                session,
+                STAGES.FINAL_REPORT
+            );
+
+            const report =
+                await reportAgent(
+                    session.history
+                );
+
+            sessionService.appendConversation(
+                session,
+                "assistant",
+                report.screen_message
+            );
+
+            evaluationService.appendEvaluation(
+                session,
+                STAGES.FINAL_REPORT,
+                report
+            );
+
+            sessionService.completeInterview(
+                session
+            );
+
+            await sessionService.saveSession(
+                session
+            );
+
+            return {
+
+                success: true,
+
+                sessionId:
+                    session.sessionId,
+
+                currentStage:
+                    STAGES.FINAL_REPORT,
+
+                report,
+
+                status:
+                    session.status
+
+            };
+
+        }
+
+        /*
+        ---------------------------------------
+        Normal Stage Progression
+        ---------------------------------------
+        */
+
+        if (nextStage) {
+
+            sessionService.updateStage(
+                session,
+                nextStage
+            );
+
+        }
+
+        else {
+
+            sessionService.completeInterview(
+                session
+            );
+
+        }
+
     }
 
-    interview.feedbackHistory.push({
-        stage,
-        score,
-        feedback
-    });
+    /*
+    ---------------------------------------
+    Save Session
+    ---------------------------------------
+    */
 
-    await interview.save();
+    await sessionService.saveSession(
+        session
+    );
 
-    return interview;
+    /*
+    ---------------------------------------
+    Response
+    ---------------------------------------
+    */
+
+    return {
+
+        success: true,
+
+        sessionId:
+            session.sessionId,
+
+        currentStage:
+            session.currentStage,
+
+        evaluation,
+
+        status:
+            session.status
+
+    };
+
 };
 
-//complete the interview session
-const completeInterview = async (
-    sessionId
-) => {
-
-    const interview =
-        await InterviewSession.findOne({
-            sessionId
-        });
-
-    if (!interview) {
-        throw new Error(
-            "Interview session not found"
-        );
-    }
-
-    interview.status =
-        "COMPLETED";
-
-    await interview.save();
-
-    return interview;
-};
+/*
+|--------------------------------------------------------------------------
+| Exports
+|--------------------------------------------------------------------------
+*/
 
 module.exports = {
     createInterview,
-    getInterviewBySessionId,
-    updateStage,
-    incrementAttempts,
-    saveEvaluation,
-    completeInterview
+    getInterview,
+    submitResponse
 };

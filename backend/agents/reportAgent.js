@@ -30,42 +30,82 @@ const reportAgent = async (
 
                 userMessage:
                     "Generate the final interview report based on the complete interview history."
+
             });
 
         if (
 
-            report.understanding_score ===
-                undefined ||
+            report.understanding_score === undefined ||
 
-            report.approach_score ===
-                undefined ||
+            report.approach_score === undefined ||
 
-            report.coding_review_score ===
-                undefined ||
+            report.coding_review_score === undefined ||
 
-            report.overall_score ===
-                undefined ||
+            report.overall_score === undefined ||
 
-            !report.screen_message
+            !report.overall_summary ||
+
+            !report.problem_understanding_analysis ||
+
+            !report.approach_analysis ||
+
+            !report.coding_review_analysis ||
+
+            !Array.isArray(report.recommendations)
 
         ) {
 
             throw new Error(
                 "Invalid Report Response"
             );
+
         }
 
-        history.push({
+        /*
+        |--------------------------------------------------------------------------
+        | Build screen_message inside backend
+        |--------------------------------------------------------------------------
+        */
 
-            role: "assistant",
+        report.screen_message = `
 
-            content:
-                report.screen_message
-        });
+Overall Performance Summary
+
+${report.overall_summary}
+
+--------------------------------------------------
+
+Problem Understanding
+
+${report.problem_understanding_analysis}
+
+--------------------------------------------------
+
+Approach Discussion
+
+${report.approach_analysis}
+
+--------------------------------------------------
+
+Coding & Review
+
+${report.coding_review_analysis}
+
+--------------------------------------------------
+
+Recommended Areas For Improvement
+
+${report.recommendations
+    .map(item => `• ${item}`)
+    .join("\n")}
+
+`.trim();
 
         return report;
 
-    } catch (err) {
+    }
+
+    catch (err) {
 
         console.error(
             "Report Agent Error:",
@@ -73,7 +113,9 @@ const reportAgent = async (
         );
 
         throw err;
+
     }
+
 };
 
 module.exports =

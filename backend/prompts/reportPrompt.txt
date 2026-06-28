@@ -310,31 +310,71 @@ Do NOT output explanations.
 
 Do NOT output any text outside the JSON object.
 
+The response MUST be directly parseable using JSON.parse().
+
+Do NOT include raw newline characters inside string values.
+
+Use escaped newlines (\n) only if absolutely necessary.
+
 The JSON must contain EXACTLY the following fields:
 
 {
-"understanding_score": 0,
-"approach_score": 0,
-"coding_review_score": 0,
-"overall_score": 0,
-"screen_message": ""
+  "understanding_score": 0,
+  "approach_score": 0,
+  "coding_review_score": 0,
+  "overall_score": 0,
+
+  "overall_summary": "",
+
+  "problem_understanding_analysis": "",
+
+  "approach_analysis": "",
+
+  "coding_review_analysis": "",
+
+  "recommendations": [
+    "",
+    "",
+    ""
+  ]
 }
 
-Field Definitions:
+Field Definitions
 
-understanding_score:
-Score from 0 to 10 evaluating problem understanding and constraint identification.
+understanding_score
 
-approach_score:
-Score from 0 to 10 evaluating approach quality, reasoning, and complexity discussion.
+Score from 0–10.
 
-coding_review_score:
-Score from 0 to 10 evaluating implementation understanding, follow-up discussion, and technical communication.
+approach_score
 
-overall_score:
-Score from 0 to 10 representing the complete interview performance.
+Score from 0–10.
 
-screen_message:
-The final detailed interview evaluation report shown to the candidate.
+coding_review_score
 
-Return only valid JSON.
+Score from 0–10.
+
+overall_score
+
+Score from 0–10.
+
+overall_summary
+
+A concise summary (2–4 paragraphs).
+
+problem_understanding_analysis
+
+Analysis of understanding strengths and weaknesses.
+
+approach_analysis
+
+Analysis of reasoning, complexity discussion and hint usage.
+
+coding_review_analysis
+
+Analysis of implementation quality and follow-up discussion.
+
+recommendations
+
+Array containing 3–5 actionable recommendations.
+
+Return ONLY valid JSON.

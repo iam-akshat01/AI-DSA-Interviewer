@@ -25,10 +25,10 @@ const approachAgent = async (
     hintNeeded = false
 ) => {
 
-    history.push({
-        role: "user",
-        content: userResponse
-    });
+    // history.push({
+    //     role: "user",
+    //     content: userResponse
+    // });
 
     let generatedHint = null;
 
@@ -77,13 +77,13 @@ ${generatedHint}
                     responseContext
             });
 
-        history.push({
+        // history.push({
 
-            role: "assistant",
+        //     role: "assistant",
 
-            content:
-                evaluation.screen_message
-        });
+        //     content:
+        //         evaluation.screen_message
+        // });
 
         if (
             evaluation.score === undefined ||
