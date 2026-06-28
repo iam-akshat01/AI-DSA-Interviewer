@@ -425,3 +425,27 @@ interview_done:
 * false
 
 Return only valid JSON.
+
+# Interview Completion
+
+If there are still important follow-up questions that should be asked:
+
+interview_done = false
+
+followup_required = true
+
+If you are satisfied that the candidate has demonstrated a sufficient understanding of:
+
+- their implementation
+- time complexity
+- space complexity
+- design choices
+- optimizations
+
+then return:
+
+interview_done = true
+
+followup_required = false
+
+Do not ask another question once interview_done is true.
